@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: light
 #       format_version: '1.5'
-#       jupytext_version: 1.11.2
+#       jupytext_version: 1.11.1
 #   kernelspec:
 #     display_name: online_portfolio2
 #     language: python
@@ -15,10 +15,11 @@
 
 # <center><h1>Time Series</h1></center>
 
+# %matplotlib inline
+
 import matplotlib.pyplot as plt
 import numpy as np
 
-# %matplotlib inline
 import pandas as pd
 import tensorflow as tf
 from keras.layers import (
@@ -33,29 +34,27 @@ from keras.layers import (
 )
 from keras.models import Sequential
 
-# +
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.preprocessing import MinMaxScaler
-
-# let's see the progress bar
 from tqdm.auto import tqdm
 
+
+# let's see the progress bar
 tqdm().pandas()
-
-
 df = pd.read_csv("./kep_lightcurves.csv")
-
 df.head()
-
 df.describe()
 
-# <h2>How many stars do we have here ?</h2>
 
+# # How many stars do we have here ?
+
+
+# +
 stars = df.columns
 stars = list(set([i.split("_")[0] for i in stars]))
 print(f"The number of stars available is: {len(stars)}")
 
-for i in stars:
+for i in tqdm(stars):
     name = i + "_rscl"
     plt.figure(figsize=(35, 10))
     plt.plot(df.index[:50000], df[name][:50000], "b+")
@@ -66,11 +65,16 @@ for i in stars:
     plt.savefig("lightcurve_" + i + ".jpeg")
 
 
+# -
+
+
 # Pretty amazing no? Like we see, the behavior of the flux for each star is very different, this is very exciting to test different models to predict the holes in the time series. But, most of this flux cannot be used directly. We need to clean a little the data points.
 
-# <h2>Clean the data</h2>
 
-# <u><h3>Mean on predefined number of point</h3></u>
+# # Clean the data
+
+
+# ## Mean on predefined number of point
 
 
 def mean_windows(time, flux, lag=5):
@@ -100,13 +104,18 @@ def mean_windows(time, flux, lag=5):
 
 # Thats a pretty simple function, you pass your data and specified the number of points you want to use for the mean. Now let's take a look with one noisy star (not too noisy) the star 001724719.
 
+
 # reduce the number of points with the mean on 10 points
+
+
 x, y, y_err = mean_windows(df.index, df["001724719_rscl"], 10)
+
 
 # Now, we can plot the results, the orignal data will be in blue, the reduced data will be in red.
 
+
 list_ = [1, 2, 11]
-for i in list_:
+for i in tqdm(list_):
     name = stars[i] + "_rscl"
     x, y, y_err = mean_windows(df.index[25000:30000], df[name][25000:30000], 40)
     plt.figure(figsize=(35, 10))
@@ -120,6 +129,7 @@ for i in list_:
     plt.grid(True)
     plt.savefig(stars[i] + "_rscl_mean_window.png", dpi=300)
 
+
 plt.figure(figsize=(35, 10))
 plt.plot(df.index, df["001724719_rscl"], "b+", label="Brut")
 plt.plot(x, y, "r-.", label="Rescaled")
@@ -129,7 +139,9 @@ plt.xlabel("Rescaled flux")
 plt.ylabel("Normalized time")
 plt.grid(True)
 
+
 # Well, not very lisible... Let's zoom in a little, plot the first 10,000 points.
+
 
 plt.figure(figsize=(35, 10))
 plt.plot(df.index[:10000], df["001724719_rscl"][:10000], "b+", label="Brut")
@@ -140,7 +152,9 @@ plt.xlabel("Rescaled flux")
 plt.ylabel("Normalized time")
 plt.grid(True)
 
+
 # Even better, but we always have difficulties to see the result. Let's zoom in again and just show the 2,000 first points.
+
 
 plt.figure(figsize=(35, 10))
 plt.plot(df.index[:2000], df["001724719_rscl"][:2000], "b+", label="Brut")
@@ -154,12 +168,16 @@ plt.grid(True)
 
 # Look very good. We can also test other methods to practice this denoising.
 
-# <u><h3>Sliding window</h3></u>
+
+# +
+## Sliding window
+
+
+# -
 
 
 def mean_sliding_windows(time, flux, lag=5):
-    """
-    This function denoise the data naively by sliding a window and make a mean between the lag number points.
+    """This function denoise the data naively by sliding a window and make a mean between the lag number points.
     @param time: (list) list of time values
     @param flux: (list) list of floats -> flux of the star
     @param lag: (int) number of points for the mean, default 5
@@ -173,7 +191,7 @@ def mean_sliding_windows(time, flux, lag=5):
     y = []
     y_std = []
     j = 0  # increment
-    for i in range(int(len(flux) - lag)):
+    for i in tqdm(range(int(len(flux) - lag))):
 
         _flux = flux[i : (i + lag)]
         _time = time[i : (i + lag)]
@@ -196,6 +214,8 @@ def mean_sliding_windows(time, flux, lag=5):
 # reduce the number of points with the mean on 10 points
 x_slide, y_slide, y_err_slide = mean_sliding_windows(df.index, df["001724719_rscl"], 20)
 
+
+# +
 len(x), len(x_slide), len(df.index)
 
 plt.figure(figsize=(35, 15))
@@ -209,7 +229,11 @@ plt.ylabel("Normalized time")
 plt.grid(True)
 
 
+# -
+
+
 # Interesting because the slide window permit to keep small fluctuations.
+
 
 # So, here are two methods, we could make a function and apply it to the whole dataset and save into a dataframe.
 
@@ -241,7 +265,8 @@ def reduced_data(df, stars):
 
 df_mean, df_slide = reduced_data(df, stars)
 
-for i in stars:
+
+for i in tqdm(stars):
     name = i + "_rscl"
     plt.figure(figsize=(35, 10))
     plt.plot(df.index[25000:35000], df[name][25000:35000], "b+", label="Brut")
@@ -263,9 +288,11 @@ for i in stars:
     plt.ylabel("Normalized time")
     plt.grid(True)
 
+
 # Seems pretty good don't you ? Let's zoom a little. Printing just 5,000 points.
 
-for i in stars:
+
+for i in tqdm(stars):
     name = i + "_rscl"
     plt.figure(figsize=(35, 10))
     plt.plot(df.index[25000:30000], df[name][25000:30000], "b+", label="Brut")
@@ -287,11 +314,13 @@ for i in stars:
     plt.ylabel("Normalized time")
     plt.grid(True)
 
-# Here we see that all the data cannot be reduced with the same parameters. Certain curve can be more smooth.
 
+# Here we see that all the data cannot be reduced with the same parameters. Certain curve can be more smooth.
+#
 # If we look closer, the star 010024701 has just few points. We need to rescale this star.
 
-for i in stars[2:3]:
+
+for i in tqdm(stars[2:3]):
     name = i + "_rscl"
     plt.figure(figsize=(35, 10))
     plt.plot(df.index[20000:28700], df[name][20000:28700], "b+", label="Brut")
@@ -314,10 +343,13 @@ for i in stars[2:3]:
     plt.grid(True)
     plt.savefig("ligthcurve_" + i + ".jpg")
 
-# <h2>Forecasting with Machine Learning</h2>
 
+# # Forecasting with Machine Learning
+#
 # We need two forecast in this data, if you look with attention you'll see micro holes and big holes.
 
+
+# +
 df_model = df_mean.copy()
 df_model2 = df_slide.copy()
 # df_model[stars[9]+"_rscl"].fillna((0), inplace=True)
@@ -334,9 +366,15 @@ df.index = pd.date_range("2009-03-07", periods=len(df.index), freq="h")
 
 df.index
 
-# <u><i><h3>Data preparation</h3></i></u>
 
+# -
+
+
+# # Data preparation
+#
 # convert an array of values into a dataset matrix
+
+
 def create_dataset(values, look_back=1):
     """
     Function to prepare a list of (x, y) data points to data for time series learning
@@ -355,27 +393,49 @@ def create_dataset(values, look_back=1):
 
 
 # fix random seed for reproducibility
+
+
+# +
 np.random.seed(42)
 
 num = 2
 values = df_model[stars[num] + "_rscl_y"].values
+
+
+# -
+
+
 # normalize the dataset
+
+
 scaler = MinMaxScaler(feature_range=(0, 1))
 dataset = scaler.fit_transform(values[~np.isnan(values)].reshape(-1, 1))
 
+
 # split into train and test sets
+
+
 train_size = int(len(dataset) * 0.8)
 test_size = len(dataset) - train_size
 train, test = dataset[:train_size], dataset[train_size:]
+
+
 # reshape into X=t and Y=t+1
+
+
 look_back = 20
 train_x, train_y = create_dataset(train, look_back)
 test_x, test_y = create_dataset(test, look_back)
+
+
 # reshape input to be [samples, time steps, features]
+
+
 train_x = np.reshape(train_x, (train_x.shape[0], train_x.shape[1], 1))
 test_x = np.reshape(test_x, (test_x.shape[0], test_x.shape[1], 1))
 
-# <u><i><h3>Functions to generate DL models and plot</h3></i></u>
+
+# # Functions to generate DL models and plot
 
 
 def metrics_time_series(y_true, y_pred):
@@ -390,9 +450,6 @@ def metrics_time_series(y_true, y_pred):
     print(f"The mean absolute error is: {mae}")
     print(f"The mean squared error is: {mse}")
     return mae, mse
-
-
-# -
 
 
 def time_series_deep_learning(
@@ -473,7 +530,7 @@ def time_series_deep_learning(
     model.compile(
         loss="mean_squared_error", optimizer="adam"
     )  # MSE loss but can be replace by 'mean_absolute_error'
-    model.fit(trainX, trainY, epochs=1000, batch_size=100, callbacks=[es], verbose=0)
+    model.fit(x_train, y_train, epochs=1000, batch_size=100, callbacks=[es], verbose=0)
 
     # make predictions
     train_predict = model.predict(x_train)
@@ -528,12 +585,24 @@ def plotting_predictions(dataset, look_back, train_predict, test_predict):
 
 df_results = pd.DataFrame()
 
-# <u><i><h3>SimpleRNN</h3></i></u>
+# ## SimpleRNN
 
 
-# x_train_predict_RNN, y_train_RNN,x_test_predict_RNN, y_test_RNN, res= time_series_deep_learning(train_x, train_y, test_x, test_y, model_dl=SimpleRNN ,  unit=12, look_back=20)
+# +
+(
+    x_train_predict_RNN,
+    y_train_RNN,
+    x_test_predict_RNN,
+    y_test_RNN,
+    res,
+) = time_series_deep_learning(
+    train_x, train_y, test_x, test_y, model_dl=SimpleRNN, unit=12, look_back=20
+)
+
 plotting_predictions(dataset, look_back, x_train_predict_RNN, x_test_predict_RNN)
-# df_results = df_results.append(res)
+
+df_results = df_results.append(res)
+# -
 
 (
     x_train_predict_RNN,
@@ -554,7 +623,7 @@ plotting_predictions(dataset, look_back, x_train_predict_RNN, x_test_predict_RNN
 plotting_predictions(dataset, look_back, x_train_predict_RNN, x_test_predict_RNN)
 df_results = df_results.append(res)
 
-# <u><i><h3>LSTM</h3></i></u>
+# ## LSTM
 
 (
     x_train_predict_lstm,
@@ -568,7 +637,7 @@ df_results = df_results.append(res)
 plotting_predictions(dataset, look_back, x_train_predict_lstm, x_test_predict_lstm)
 df_results = df_results.append(res)
 
-# <u><i><h3>GRU</h3></i></u>
+# ## GRU
 
 
 (
@@ -583,7 +652,7 @@ df_results = df_results.append(res)
 plotting_predictions(dataset, look_back, x_train_predict_gru, x_test_predict_gru)
 df_results = df_results.append(res)
 
-# <u><i><h3>Stacked LSTMs</h3></i></u>
+# ## Stacked LSTMs
 
 (
     x_train_predict_stack_lstm,
@@ -599,7 +668,7 @@ plotting_predictions(
 )
 df_results = df_results.append(res)
 
-# <i><u><h3>Stacked GRU</h3></u></i>
+# ## Stacked GRU
 
 (
     x_train_predict_stack_gru,
@@ -615,7 +684,7 @@ plotting_predictions(
 )
 df_results = df_results.append(res)
 
-# <u><i><h3>Bidirectional LSTM</h3></i></u>
+# ## Bidirectional LSTM
 
 
 (
@@ -638,7 +707,7 @@ df_results = df_results.append(res)
 plotting_predictions(dataset, look_back, x_train_predict_biLSTM, x_test_predict_biLSTM)
 df_results = df_results.append(res)
 
-# <u><i><h3>Bidirectional GRU</h3></i></u>
+# ## Bidirectional GRU
 
 (
     x_train_predict_biGRU,
@@ -660,7 +729,7 @@ df_results = df_results.append(res)
 plotting_predictions(dataset, look_back, x_train_predict_biGRU, x_test_predict_biGRU)
 df_results = df_results.append(res)
 
-# <i><u><h3>Stacked BiLSTM</h3></u></i>
+# ## Stacked BiLSTM
 
 (
     x_train_predict_stack_biLSTM,
@@ -684,7 +753,7 @@ plotting_predictions(
 )
 df_results = df_results.append(res)
 
-# <i><u><h3>Stacked BiGRU</h3></u></i>
+# ## Stacked BiGRU
 
 (
     x_train_predict_stack_biGRU,
@@ -710,7 +779,7 @@ df_results = df_results.append(res)
 
 df_results.sort_values(by=["mae_test", "mse_test"], ascending=True)
 
-# <u><i><h3>CNN-LSTM</h3></i></u>
+# ## CNN-LSTM
 
 (
     x_train_predict_cnn_lstm,
@@ -724,7 +793,7 @@ df_results.sort_values(by=["mae_test", "mse_test"], ascending=True)
 plotting_predictions(dataset, look_back, x_train_predict_lstm, x_test_predict_lstm)
 df_results = df_results.append(res)
 
-# <u><i><h3>CNN-GRU</h3></i></u>
+# ## CNN-GRU
 
 (
     x_train_predict_cnn_gru,
